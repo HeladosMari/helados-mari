@@ -1,126 +1,144 @@
-<div id="venta" class="tab-content active">
-    <div class="card">
-        <h3>Nueva Venta</h3>
-        
-        <label>Nombre del Cliente</label>
-        <input type="text" id="v-cliente" list="lista-clientes" placeholder="Escribe o selecciona un cliente">
-        <datalist id="lista-clientes"></datalist> <label>Producto</label>
-        <select id="v-producto"></select>
-        
-        <button class="btn btn-pay" onclick="agregarAlCarrito()" style="margin-top: 10px; background: var(--blue);">+ Agregar al Carrito</button>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Helados Mari - Sistema de Ventas</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --blue: #1a4ab2; --yellow: #ffcc00; --green: #28a745; --red: #dc3545; --gray: #6c757d; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; margin: 0; padding-bottom: 50px; }
+        header { background: var(--blue); color: white; text-align: center; padding: 15px; font-weight: bold; border-bottom: 4px solid var(--yellow); font-size: 1.2rem; }
+        nav { display: flex; justify-content: space-around; background: white; padding: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 100; }
+        nav button { border: none; background: none; font-size: 14px; cursor: pointer; padding: 10px 15px; border-radius: 8px; color: #555; display: flex; align-items: center; gap: 5px; }
+        nav button.active { background: #007bff; color: white; font-weight: bold; }
+        .container { padding: 15px; max-width: 600px; margin: auto; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 15px; border: 1px solid #eee; }
+        input, select { width: 100%; padding: 12px; margin: 8px 0 15px 0; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 16px; margin-top: 5px; }
+        .btn-pay { background: var(--green); }
+        .btn-credit { background: white; color: var(--red); border: 2px solid var(--red); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .item-list { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding: 10px 0; }
+        .cart-item { background: #f8f9fa; padding: 10px; border-radius: 8px; margin-bottom: 5px; display: flex; justify-content: space-between; border-left: 4px solid var(--blue); }
+    </style>
+</head>
+<body>
 
-        <div id="carrito-seccion" style="margin-top: 20px; border-top: 1px solid #ddd; padding-top: 10px; display: none;">
-            <h4>Productos a vender:</h4>
-            <div id="lista-carrito"></div>
-            <div style="text-align: right; font-weight: bold; margin: 10px 0;">Total: $<span id="total-carrito">0.00</span></div>
+<header>🍦 HELADOS MARI</header>
+
+<nav>
+    <button onclick="changeTab('venta')" id="nav-venta" class="active">🛒 Venta</button>
+    <button onclick="changeTab('deudas')" id="nav-deudas">💸 Deudas</button>
+    <button onclick="changeTab('admin')" id="nav-admin">⚙️ Admin</button>
+</nav>
+
+<div class="container">
+    <div id="tab-venta" class="tab-content active">
+        <div class="card">
+            <label><b>Nombre del Cliente</b></label>
+            <input type="text" id="v-cliente" list="lista-clientes" placeholder="Escribe o selecciona...">
+            <datalist id="lista-clientes"></datalist>
+
+            <label><b>Producto</b></label>
+            <select id="v-producto"></select>
             
-            <div class="btn-group">
-                <button class="btn btn-pay" onclick="finalizarVenta('Pagado')">✅ PAGADO</button>
-                <button class="btn btn-credit" onclick="finalizarVenta('Crédito')">🔴 CRÉDITO</button>
-            </div>
+            <button class="btn" style="background: var(--blue);" onclick="agregarAlCarrito()">+ Añadir al Carrito</button>
         </div>
+
+        <div id="seccion-carrito" class="card" style="display:none;">
+            <h4>Lista de Compra</h4>
+            <div id="items-carrito"></div>
+            <hr>
+            <h3 style="text-align:right;">Total: $<span id="total-venda">0.00</span></h3>
+            <button class="btn btn-pay" onclick="finalizarVenta('Pagado')">✅ REGISTRAR PAGO</button>
+            <button class="btn btn-credit" onclick="finalizarVenta('Crédito')">🛑 A CRÉDITO</button>
+        </div>
+    </div>
+
+    <div id="tab-deudas" class="tab-content">
+        <div class="card" style="text-align:center; border: 2px solid var(--red);">
+            <p style="margin:0; color:#666;">TOTAL POR COBRAR</p>
+            <h1 id="total-deudas" style="color:var(--red); margin:5px 0;">$0.00</h1>
+        </div>
+        <div id="lista-deudas"></div>
+    </div>
+
+    <div id="tab-admin" class="tab-content">
+        <div class="card">
+            <h3 id="form-title">+ Nuevo Producto</h3>
+            <input type="hidden" id="edit-id">
+            <input type="text" id="new-p-nombre" placeholder="Nombre (ej. Barquilla)">
+            <input type="number" id="new-p-precio" step="0.01" placeholder="Precio (ej. 1.50)">
+            <button class="btn btn-pay" id="btn-save" onclick="guardarProducto()">Añadir Producto</button>
+            <button class="btn" id="btn-cancel" style="display:none; background:var(--gray)" onclick="cancelarEdicion()">Cancelar</button>
+        </div>
+        <div id="lista-productos-admin"></div>
     </div>
 </div>
 
 <script>
-// --- NUEVAS VARIABLES Y FUNCIONES PARA VENTA FLEXIBLE ---
-let carrito = [];
+    const SB_URL = "https://bohwyjtmyrtzuiyfqeto.supabase.co";
+    const SB_KEY = "sb_publishable_VYeyhaK2liOkgm8P3m8uyA_Bpkj1ZsF";
+    const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
 
-// 1. Cargar sugerencias de clientes (Autocompletado)
-async function cargarSugerenciasClientes() {
-    const { data } = await supabase.from('clientes').select('nombre');
-    const datalist = document.getElementById('lista-clientes');
-    datalist.innerHTML = '';
-    // Eliminar duplicados si existen
-    const nombresUnicos = [...new Set(data.map(c => c.nombre))];
-    nombresUnicos.forEach(nombre => {
-        const option = document.createElement('option');
-        option.value = nombre;
-        datalist.appendChild(option);
-    });
-}
+    let carrito = [];
 
-// 2. Agregar producto al carrito local
-function agregarAlCarrito() {
-    const select = document.getElementById('v-producto');
-    const productoId = select.value;
-    const textoProducto = select.options[select.selectedIndex].text;
-    const precio = parseFloat(textoProducto.match(/\$(\d+\.?\base2d*)/)[1]);
-    const nombreProd = textoProducto.split(' (')[0];
-
-    if (!productoId) return;
-
-    carrito.push({ id: productoId, nombre: nombreProd, precio: precio });
-    actualizarVistaCarrito();
-}
-
-// 3. Quitar producto si hubo error
-function quitarDelCarrito(index) {
-    carrito.splice(index, 1);
-    actualizarVistaCarrito();
-}
-
-function actualizarVistaCarrito() {
-    const lista = document.getElementById('lista-carrito');
-    const seccion = document.getElementById('carrito-seccion');
-    const totalSpan = document.getElementById('total-carrito');
-    
-    if (carrito.length === 0) {
-        seccion.style.display = 'none';
-        return;
+    function changeTab(tabName) {
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+        document.getElementById('tab-' + tabName).classList.add('active');
+        document.getElementById('nav-' + tabName).classList.add('active');
+        if(tabName === 'deudas') cargarDeudas();
+        if(tabName === 'admin') listarProductosAdmin();
+        if(tabName === 'venta') cargarSugerenciasClientes();
     }
 
-    seccion.style.display = 'block';
-    lista.innerHTML = '';
-    let total = 0;
-
-    carrito.forEach((item, index) => {
-        total += item.precio;
-        lista.innerHTML += `
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; background: #f9f9f9; padding: 5px; border-radius: 4px;">
-                <span>${item.nombre} - $${item.precio.toFixed(2)}</span>
-                <button onclick="quitarDelCarrito(${index})" style="background:none; border:none; color:red; cursor:pointer;">🗑️</button>
-            </div>`;
-    });
-    totalSpan.innerText = total.toFixed(2);
-}
-
-// 4. Finalizar la venta de todo el carrito
-async function finalizarVenta(estado) {
-    const clienteNom = document.getElementById('v-cliente').value;
-    if (!clienteNom || carrito.length === 0) {
-        alert("Falta el nombre del cliente o productos en el carrito");
-        return;
+    // --- FUNCIONES DE PRODUCTOS ---
+    async function cargarProductos() {
+        const { data } = await supabaseClient.from('productos').select('*').order('nombre');
+        const select = document.getElementById('v-producto');
+        if(data) select.innerHTML = data.map(p => `<option value="${p.id}" data-precio="${p.precio}">${p.nombre} ($${p.precio})</option>`).join('');
     }
 
-    // Buscar o crear cliente
-    let { data: cliente } = await supabase.from('clientes').select('*').eq('nombre', clienteNom).single();
-    if (!cliente) {
-        const { data: nuevo } = await supabase.from('clientes').insert([{ nombre: clienteNom }]).select().single();
-        cliente = nuevo;
+    async function guardarProducto() {
+        const id = document.getElementById('edit-id').value;
+        const n = document.getElementById('new-p-nombre').value.trim();
+        const p = document.getElementById('new-p-precio').value;
+        if(!n || !p) return alert("Completa todos los campos");
+
+        if(id) {
+            await supabaseClient.from('productos').update({ nombre: n, precio: p }).eq('id', id);
+        } else {
+            const { data: existe } = await supabaseClient.from('productos').select('id').eq('nombre', n).maybeSingle();
+            if(existe) return alert("¡Error! Ese producto ya existe.");
+            await supabaseClient.from('productos').insert([{ nombre: n, precio: p }]);
+        }
+        cancelarEdicion();
+        listarProductosAdmin();
+        cargarProductos();
     }
 
-    // Registrar cada producto del carrito
-    for (const item of carrito) {
-        await supabase.from('ventas').insert([{
-            cliente_id: cliente.id,
-            producto_id: item.id,
-            cantidad: 1,
-            total: item.precio,
-            estado: estado
-        }]);
+    async function listarProductosAdmin() {
+        const { data } = await supabaseClient.from('productos').select('*').order('nombre');
+        const lista = document.getElementById('lista-productos-admin');
+        lista.innerHTML = "<h3>Inventario</h3>";
+        data.forEach(p => {
+            lista.innerHTML += `<div class="card item-list"><span>${p.nombre} - <b>$${p.precio}</b></span><div class="actions"><button onclick="editarInterfaz(${p.id}, '${p.nombre}', ${p.precio})">✏️</button><button onclick="eliminarProducto(${p.id})">🗑️</button></div></div>`;
+        });
     }
 
-    alert(`Venta registrada como: ${estado}`);
-    carrito = [];
-    document.getElementById('v-cliente').value = '';
-    actualizarVistaCarrito();
-    cargarSugerenciasClientes(); // Actualizar lista de autocompletado
-}
+    function editarInterfaz(id, nombre, precio) {
+        document.getElementById('edit-id').value = id;
+        document.getElementById('new-p-nombre').value = nombre;
+        document.getElementById('new-p-precio').value = precio;
+        document.getElementById('form-title').innerText = "✏️ Editando: " + nombre;
+        document.getElementById('btn-save').innerText = "Guardar Cambios";
+        document.getElementById('btn-cancel').style.display = "block";
+    }
 
-// Asegúrate de llamar a cargarSugerenciasClientes() cuando cargue la página
-window.onload = function() {
-    cargarProductos();
-    cargarSugerenciasClientes();
-};
-</script>
+    function cancelarEdicion() {
+        document.getElementById('edit-id').value = "";
+        document.getElementById('new-p-nombre').value = "";
+        document.getElementById('new-p-precio').value =
