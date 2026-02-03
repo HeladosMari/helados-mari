@@ -17,6 +17,7 @@
         input, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
         .btn { width: 100%; padding: 15px; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 16px; }
         .cart-item { display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid #eee; background: #f9f9f9; margin-bottom: 5px; border-radius: 4px; }
+        .deuda-row { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #eee; }
     </style>
 </head>
 <body>
@@ -50,15 +51,15 @@
 
     <div id="tab-deudas" class="tab-content" style="display:none">
         <div class="card" style="text-align:center; border:2px solid var(--red)">
-            <p>POR COBRAR</p>
+            <p>TOTAL POR COBRAR</p>
             <h1 id="d-total" style="color:var(--red)">$0.00</h1>
         </div>
-        <div id="d-list"></div>
+        <div id="d-list" class="card"></div>
     </div>
 
     <div id="tab-admin" class="tab-content" style="display:none">
         <div class="card">
-            <h3 id="f-title">+ Nuevo</h3>
+            <h3 id="f-title">+ Nuevo Producto</h3>
             <input type="hidden" id="e-id">
             <input type="text" id="p-nom" placeholder="Nombre">
             <input type="number" id="p-pre" step="0.01" placeholder="Precio">
@@ -96,7 +97,7 @@
 
     function addCart() {
         const s = document.getElementById('v-producto');
-        const id = s.value;
+        const id = s.value; if(!id) return;
         const n = s.options[s.selectedIndex].text.split(' (')[0];
         const p = parseFloat(s.options[s.selectedIndex].dataset.pre);
         cart.push({id, n, p});
@@ -104,12 +105,9 @@
     }
 
     function drawCart() {
-        const b = document.getElementById('cart-box');
-        const l = document.getElementById('cart-list');
-        const t = document.getElementById('cart-total');
+        const b = document.getElementById('cart-box'), l = document.getElementById('cart-list'), t = document.getElementById('cart-total');
         if(cart.length===0){ b.style.display='none'; return; }
-        b.style.display='block';
-        l.innerHTML = ''; let tot = 0;
+        b.style.display='block'; l.innerHTML = ''; let tot = 0;
         cart.forEach((it, i) => {
             tot += it.p;
             l.innerHTML += `<div class="cart-item"><span>${it.n}</span><b>$${it.p} <span onclick="cart.splice(${i},1);drawCart()" style="color:red;cursor:pointer;margin-left:10px">✖</span></b></div>`;
@@ -123,15 +121,34 @@
         let {data:c} = await supabaseClient.from('clientes').select('id').eq('nombre', cli).maybeSingle();
         if(!c) { const {data:n} = await supabaseClient.from('clientes').insert([{nombre:cli}]).select().single(); c=n; }
         for(let it of cart){ await supabaseClient.from('ventas').insert([{cliente_id:c.id, producto_id:it.id, total:it.p, estado:est}]); }
-        alert("¡Listo!"); cart=[]; document.getElementById('v-cliente').value=''; drawCart(); loadP();
+        alert("¡Venta Registrada!"); cart=[]; document.getElementById('v-cliente').value=''; drawCart(); loadP();
+    }
+
+    async function listDeudas() {
+        const {data} = await supabaseClient.from('ventas').select('total, clientes(nombre)').eq('estado', 'Crédito');
+        const l = document.getElementById('d-list'); l.innerHTML = '';
+        if(!data || data.length === 0) { l.innerHTML = "No hay deudas pendientes"; return; }
+
+        // AGRUPAR POR CLIENTE
+        const resumen = {};
+        let totalGeneral = 0;
+        data.forEach(v => {
+            const nombre = v.clientes.nombre;
+            resumen[nombre] = (resumen[nombre] || 0) + parseFloat(v.total);
+            totalGeneral += parseFloat(v.total);
+        });
+
+        for (const [nombre, monto] of Object.entries(resumen)) {
+            l.innerHTML += `<div class="deuda-row"><span>${nombre}</span><b style="color:var(--red)">$${monto.toFixed(2)}</b></div>`;
+        }
+        document.getElementById('d-total').innerText = `$${totalGeneral.toFixed(2)}`;
     }
 
     async function listAdmin() {
         const {data} = await supabaseClient.from('productos').select('*').order('nombre');
-        const l = document.getElementById('admin-list');
-        l.innerHTML = '<h3>Inventario</h3>';
-        data.forEach(p => {
-            l.innerHTML += `<div class="card" style="display:flex;justify-content:space-between"><span>${p.nombre} - $${p.precio}</span><div><span onclick="editP(${p.id},'${p.nombre}',${p.precio})" style="cursor:pointer">✏️</span> <span onclick="delP(${p.id})" style="cursor:pointer">🗑️</span></div></div>`;
+        const l = document.getElementById('admin-list'); l.innerHTML = '<h3>Inventario</h3>';
+        if(data) data.forEach(p => {
+            l.innerHTML += `<div class="card" style="display:flex;justify-content:space-between"><span>${p.nombre} - $${p.precio}</span><div><span onclick="editP(${p.id},'${p.nombre}',${p.precio})" style="cursor:pointer">✏️</span> <span onclick="delP(${p.id})" style="cursor:pointer;margin-left:15px">🗑️</span></div></div>`;
         });
     }
 
@@ -141,19 +158,12 @@
         if(id) await supabaseClient.from('productos').update({nombre:n, precio:p}).eq('id', id);
         else await supabaseClient.from('productos').insert([{nombre:n, precio:p}]);
         document.getElementById('e-id').value=''; document.getElementById('p-nom').value=''; document.getElementById('p-pre').value='';
+        document.getElementById('f-title').innerText="+ Nuevo Producto";
         listAdmin(); loadP();
     }
 
     async function delP(id) { if(confirm("¿Borrar?")){ await supabaseClient.from('productos').delete().eq('id',id); listAdmin(); loadP(); } }
-    
     function editP(id,n,p) { document.getElementById('e-id').value=id; document.getElementById('p-nom').value=n; document.getElementById('p-pre').value=p; document.getElementById('f-title').innerText="Editando..."; }
-
-    async function listDeudas() {
-        const {data} = await supabaseClient.from('ventas').select('total, clientes(nombre)').eq('estado', 'Crédito');
-        let tot = 0; const l = document.getElementById('d-list'); l.innerHTML = '';
-        if(data) data.forEach(v => { tot += parseFloat(v.total); l.innerHTML += `<div class="card"><b>${v.clientes.nombre}</b>: $${v.total}</div>`; });
-        document.getElementById('d-total').innerText = `$${tot.toFixed(2)}`;
-    }
 
     window.onload = loadP;
 </script>
