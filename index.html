@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Helados Mari - Control de Ventas</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --blue: #0044cc; --yellow: #ffcc00; --green: #28a745; --red: #dc3545; }
+        body { font-family: Arial, sans-serif; background: #f4f7f6; margin: 0; }
+        header { background: var(--blue); color: white; text-align: center; padding: 15px; font-weight: bold; border-bottom: 4px solid var(--yellow); }
+        nav { display: flex; justify-content: space-around; background: white; padding: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        nav button { border: none; background: none; font-size: 14px; cursor: pointer; padding: 10px; border-radius: 5px; }
+        nav button.active { background: var(--blue); color: white; }
+        .container { padding: 20px; max-width: 800px; margin: auto; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        input, select { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        .btn-group { display: flex; gap: 10px; }
+        .btn { flex: 1; padding: 15px; border: none; border-radius: 5px; color: white; font-weight: bold; cursor: pointer; }
+        .btn-pay { background: var(--green); }
+        .btn-credit { background: white; color: var(--red); border: 1px solid var(--red); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+    </style>
+</head>
+<body>
+
+<header>🍦 HELADOS MARI</header>
+
+<nav>
+    <button onclick="showTab('venta')" id="btn-venta" class="active">🛒 Venta</button>
+    <button onclick="showTab('deudas')" id="btn-deudas">💸 Deudas</button>
+    <button onclick="showTab('pagados')" id="btn-pagados">✅ Pagados</button>
+    <button onclick="showTab('admin')" id="btn-admin">⚙️ Admin</button>
+</nav>
+
+<div class="container">
+    <div id="venta" class="tab-content active">
+        <div class="card">
+            <label>Nombre del Cliente</label>
+            <input type="text" id="v-cliente" placeholder="Escribe o selecciona">
+            <label>Producto</label>
+            <select id="v-producto"></select>
+            <div class="btn-group">
+                <button class="btn btn-pay" onclick="registrarVenta('Pagado')">✅ PAGADO</button>
+                <button class="btn btn-credit" onclick="registrarVenta('Crédito')">🛑 CRÉDITO</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="deudas" class="tab-content">
+        <div class="card" style="text-align:center; border: 1px solid var(--red);">
+            <p>TOTAL POR COBRAR</p>
+            <h2 id="total-deudas" style="color:var(--red);">$0.00</h2>
+        </div>
+        <div id="lista-deudas"></div>
+    </div>
+</div>
+
+<script>
+    const SB_URL = "https://bohwyjtmyrtzuiyfqeto.supabase.co";
+    const SB_KEY = "sb_publishable_VYeyhaK2liOkgm8P3m8uyA_Bpkj1ZsF";
+    const supabase = supabase.createClient(SB_URL, SB_KEY);
+
+    function showTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        document.getElementById('btn-' + tabId).classList.add('active');
+        if(tabId === 'deudas') cargarDeudas();
+    }
+
+    async function cargarProductos() {
+        const { data } = await supabase.from('productos').select('*');
+        const select = document.getElementById('v-producto');
+        select.innerHTML = data.map(p => `<option value="${p.id}" data-precio="${p.precio}">${p.nombre} ($${p.precio})</option>`).join('');
+    }
+
+    async function registrarVenta(estado) {
+        const clienteNom = document.getElementById('v-cliente').value;
+        const productoId = document.getElementById('v-producto').value;
+        const precio = document.getElementById('v-producto').selectedOptions[0].dataset.precio;
+
+        // 1. Buscar o crear cliente
+        let { data: cliente } = await supabase.from('clientes').select('id').eq('nombre', clienteNom).single();
+        if (!cliente) {
+            const { data: nuevo } = await supabase.from('clientes').insert([{ nombre: clienteNom }]).select().single();
+            cliente = nuevo;
+        }
+
+        // 2. Registrar Venta
+        await supabase.from('ventas').insert([{
+            cliente_id: cliente.id,
+            producto_id: productoId,
+            cantidad: 1,
+            total: precio,
+            estado: estado
+        }]);
+
+        alert("Venta registrada como: " + estado);
+        document.getElementById('v-cliente').value = "";
+    }
+
+    async function cargarDeudas() {
+        const { data } = await supabase.from('ventas').select('total, fecha, clientes(nombre)').eq('estado', 'Crédito');
+        let total = 0;
+        const lista = document.getElementById('lista-deudas');
+        lista.innerHTML = data.map(v => {
+            total += parseFloat(v.total);
+            return `<div class="card"><b>${v.clientes.nombre}</b> <span style="float:right; color:red">$${v.total}</span><br><small>${new Date(v.fecha).toLocaleDateString()}</small></div>`;
+        }).join('');
+        document.getElementById('total-deudas').innerText = `$${total.toFixed(2)}`;
+    }
+
+    window.onload = cargarProductos;
+</script>
+</body>
+</html>
