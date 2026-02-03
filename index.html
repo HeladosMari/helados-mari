@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Helados Mari</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --blue: #1a4ab2; --yellow: #ffcc00; --green: #28a745; --red: #dc3545; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; margin: 0; padding-bottom: 50px; }
+        header { background: var(--blue); color: white; text-align: center; padding: 15px; font-weight: bold; border-bottom: 4px solid var(--yellow); font-size: 1.2rem; }
+        nav { display: flex; justify-content: space-around; background: white; padding: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); sticky: top; }
+        nav button { border: none; background: none; font-size: 14px; cursor: pointer; padding: 10px 15px; border-radius: 8px; color: #555; display: flex; align-items: center; gap: 5px; }
+        nav button.active { background: #007bff; color: white; font-weight: bold; }
+        .container { padding: 15px; max-width: 600px; margin: auto; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 15px; border: 1px solid #eee; }
+        input, select { width: 100%; padding: 12px; margin: 8px 0 15px 0; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; }
+        .btn-group { display: flex; gap: 10px; margin-top: 10px; }
+        .btn { flex: 1; padding: 15px; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 14px; }
+        .btn-pay { background: var(--green); }
+        .btn-credit { background: white; color: var(--red); border: 2px solid var(--red); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .item-deuda { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding: 10px 0; }
+    </style>
+</head>
+<body>
+
+<header>🍦 HELADOS MARI</header>
+
+<nav>
+    <button onclick="changeTab('venta')" id="nav-venta" class="active">🛒 Venta</button>
+    <button onclick="changeTab('deudas')" id="nav-deudas">💸 Deudas</button>
+    <button onclick="changeTab('pagados')" id="nav-pagados">✅ Pagados</button>
+    <button onclick="changeTab('admin')" id="nav-admin">⚙️ Admin</button>
+</nav>
+
+<div class="container">
+    <div id="tab-venta" class="tab-content active">
+        <div class="card">
+            <label><b>Nombre del Cliente</b></label>
+            <input type="text" id="v-cliente" placeholder="Escribe el nombre...">
+            <label><b>Producto</b></label>
+            <select id="v-producto"><option>Cargando productos...</option></select>
+            <div class="btn-group">
+                <button class="btn btn-pay" onclick="registrarVenta('Pagado')">✅ PAGADO</button>
+                <button class="btn btn-credit" onclick="registrarVenta('Crédito')">🛑 CRÉDITO</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-deudas" class="tab-content">
+        <div class="card" style="text-align:center; border: 2px solid var(--red);">
+            <p style="margin:0; color:#666;">TOTAL POR COBRAR</p>
+            <h1 id="total-deudas" style="color:var(--red); margin:5px 0;">$0.00</h1>
+        </div>
+        <div id="lista-deudas"></div>
+    </div>
+
+    <div id="tab-admin" class="tab-content">
+        <div class="card">
+            <h3>+ Nuevo Producto</h3>
+            <input type="text" id="new-p-nombre" placeholder="Nombre (ej. Barquilla)">
+            <input type="number" id="new-p-precio" placeholder="Precio (ej. 1.5)">
+            <button class="btn btn-pay" style="width:100%" onclick="crearProducto()">Añadir</button>
+        </div>
+        <div id="lista-productos-admin"></div>
+    </div>
+</div>
+
+<script>
+    const SB_URL = "https://bohwyjtmyrtzuiyfqeto.supabase.co";
+    const SB_KEY = "sb_publishable_VYeyhaK2liOkgm8P3m8uyA_Bpkj1ZsF";
+    const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
+
+    // FUNCIÓN PARA CAMBIAR PESTAÑAS (Esto es lo que estaba fallando)
+    function changeTab(tabName) {
+        // Ocultar todos los contenidos
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.remove('active');
+        });
+        // Quitar clase active de los botones
+        document.querySelectorAll('nav button').forEach(btn => {
+            btn.classList.remove('active');
+        });
+
+        // Mostrar el seleccionado
+        document.getElementById('tab-' + tabName).classList.add('active');
+        document.getElementById('nav-' + tabName).classList.add('active');
+
+        // Cargar datos según la pestaña
+        if(tabName === 'deudas') cargarDeudas();
+        if(tabName === 'admin') listarProductosAdmin();
+    }
+
+    async function cargarProductos() {
+        const { data } = await supabaseClient.from('productos').select('*');
+        const select = document.getElementById('v-producto');
+        if(data) {
+            select.innerHTML = data.map(p => `<option value="${p.id}" data-precio="${p.precio}">${p.nombre} ($${p.precio})</option>`).join('');
+        }
+    }
+
+    async function crearProducto() {
+        const n = document.getElementById('new-p-nombre').value;
+        const p = document.getElementById('new-p-precio').value;
+        await supabaseClient.from('productos').insert([{ nombre: n, precio: p }]);
+        alert("Producto creado!");
+        cargarProductos();
+        listarProductosAdmin();
+    }
+
+    async function registrarVenta(estado) {
+        const clienteNom = document.getElementById('v-cliente').value;
+        const combo = document.getElementById('v-producto');
+        const productoId = combo.value;
+        const precio = combo.selectedOptions[0].dataset.precio;
+
+        if(!clienteNom) return alert("Escribe el nombre del cliente");
+
+        // Buscar o crear cliente
+        let { data: cliente } = await supabaseClient.from('clientes').select('id').eq('nombre', clienteNom).maybeSingle();
+        if (!cliente) {
+            const { data: nuevo } = await supabaseClient.from('clientes').insert([{ nombre: clienteNom }]).select().single();
+            cliente = nuevo;
+        }
+
+        await supabaseClient.from('ventas').insert([{
+            cliente_id: cliente.id,
+            producto_id: productoId,
+            total: precio,
+            estado: estado
+        }]);
+
+        alert("Registrado!");
+        document.getElementById('v-cliente').value = "";
+    }
+
+    async function cargarDeudas() {
+        const { data } = await supabaseClient.from('ventas').select('total, clientes(nombre)').eq('estado', 'Crédito');
+        let total = 0;
+        const lista = document.getElementById('lista-deudas');
+        lista.innerHTML = data.map(v => {
+            total += parseFloat(v.total);
+            return `<div class="card item-deuda"><span>${v.clientes.nombre}</span><b style="color:red">$${v.total}</b></div>`;
+        }).join('');
+        document.getElementById('total-deudas').innerText = `$${total.toFixed(2)}`;
+    }
+
+    // Al iniciar
+    window.onload = cargarProductos;
+</script>
+</body>
+</html>
