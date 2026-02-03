@@ -10,14 +10,14 @@
         body { font-family: sans-serif; background: #f0f2f5; margin: 0; padding-bottom: 50px; }
         header { background: var(--blue); color: white; text-align: center; padding: 15px; border-bottom: 4px solid var(--yellow); font-weight: bold; }
         nav { display: flex; justify-content: space-around; background: white; padding: 10px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        nav button { border: none; background: none; padding: 10px; cursor: pointer; border-radius: 8px; }
-        nav button.active { background: var(--blue); color: white; font-weight: bold; }
+        nav button { border: none; background: none; padding: 10px; cursor: pointer; border-radius: 8px; font-weight: bold; color: #555; }
+        nav button.active { background: var(--blue); color: white; }
         .container { padding: 15px; max-width: 500px; margin: auto; }
         .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 15px; }
         input, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
-        .btn { width: 100%; padding: 15px; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 16px; }
-        .cart-item { display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid #eee; background: #f9f9f9; margin-bottom: 5px; border-radius: 4px; }
-        .deuda-row { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #eee; }
+        .btn { width: 100%; padding: 15px; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 16px; margin-top: 5px; }
+        .item-row { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #eee; }
+        .cart-item { background: #f9f9f9; padding: 8px; margin-bottom: 5px; border-radius: 5px; display: flex; justify-content: space-between; }
     </style>
 </head>
 <body>
@@ -25,147 +25,166 @@
 <header>🍦 HELADOS MARI</header>
 
 <nav>
-    <button onclick="changeTab('venta')" id="nav-venta" class="active">🛒 Venta</button>
-    <button onclick="changeTab('deudas')" id="nav-deudas">💸 Deudas</button>
-    <button onclick="changeTab('admin')" id="nav-admin">⚙️ Admin</button>
+    <button onclick="showTab('venta')" id="btn-venta" class="active">🛒 Venta</button>
+    <button onclick="showTab('deudas')" id="btn-deudas">💸 Deudas</button>
+    <button onclick="showTab('admin')" id="btn-admin">⚙️ Admin</button>
 </nav>
 
 <div class="container">
-    <div id="tab-venta" class="tab-content">
+    <div id="tab-venta" class="tab">
         <div class="card">
             <label>Cliente</label>
-            <input type="text" id="v-cliente" list="l-clientes" placeholder="Nombre...">
+            <input type="text" id="v-cliente" list="l-clientes" placeholder="Nombre del cliente...">
             <datalist id="l-clientes"></datalist>
             <label>Producto</label>
             <select id="v-producto"></select>
             <button class="btn" style="background:var(--blue)" onclick="addCart()">+ Al Carrito</button>
         </div>
         <div id="cart-box" class="card" style="display:none">
-            <h4>Pedido:</h4>
             <div id="cart-list"></div>
-            <h3>Total: $<span id="cart-total">0.00</span></h3>
-            <button class="btn" style="background:var(--green); margin-bottom:10px" onclick="finish('Pagado')">✅ PAGADO</button>
-            <button class="btn" style="background:white; color:var(--red); border:2px solid var(--red)" onclick="finish('Crédito')">🛑 CRÉDITO</button>
+            <h3 style="text-align:right">Total: $<span id="cart-total">0.00</span></h3>
+            <button class="btn" style="background:var(--green)" onclick="doVenta('Pagado')">✅ PAGADO</button>
+            <button class="btn" style="background:white; color:var(--red); border:2px solid var(--red)" onclick="doVenta('Crédito')">🛑 CRÉDITO</button>
         </div>
     </div>
 
-    <div id="tab-deudas" class="tab-content" style="display:none">
+    <div id="tab-deudas" class="tab" style="display:none">
         <div class="card" style="text-align:center; border:2px solid var(--red)">
-            <p>TOTAL POR COBRAR</p>
-            <h1 id="d-total" style="color:var(--red)">$0.00</h1>
+            <p style="margin:0; font-size:12px; color:gray">TOTAL POR COBRAR</p>
+            <h1 id="d-total-suma" style="color:var(--red); margin:5px 0;">$0.00</h1>
         </div>
-        <div id="d-list" class="card"></div>
+        <div id="d-list" class="card">Cargando...</div>
     </div>
 
-    <div id="tab-admin" class="tab-content" style="display:none">
+    <div id="tab-admin" class="tab" style="display:none">
         <div class="card">
-            <h3 id="f-title">+ Nuevo Producto</h3>
-            <input type="hidden" id="e-id">
-            <input type="text" id="p-nom" placeholder="Nombre">
-            <input type="number" id="p-pre" step="0.01" placeholder="Precio">
-            <button class="btn" style="background:var(--green)" onclick="saveP()">Guardar</button>
+            <h3 id="adm-title">+ Nuevo</h3>
+            <input type="hidden" id="adm-id">
+            <input type="text" id="adm-nom" placeholder="Nombre">
+            <input type="number" id="adm-pre" step="0.01" placeholder="Precio">
+            <button class="btn" style="background:var(--green)" onclick="saveProd()">Guardar</button>
         </div>
-        <div id="admin-list"></div>
+        <div id="adm-list"></div>
     </div>
 </div>
 
 <script>
     const URL = "https://bohwyjtmyrtzuiyfqeto.supabase.co";
     const KEY = "sb_publishable_VYeyhaK2liOkgm8P3m8uyA_Bpkj1ZsF";
-    const supabaseClient = supabase.createClient(URL, KEY);
-    let cart = [];
+    const sb = supabase.createClient(URL, KEY);
+    let carrito = [];
 
-    function changeTab(t) {
-        document.querySelectorAll('.tab-content').forEach(x => x.style.display = 'none');
-        document.querySelectorAll('nav button').forEach(x => x.classList.remove('active'));
-        document.getElementById('tab-'+t).style.display = 'block';
-        document.getElementById('nav-'+t).classList.add('active');
-        if(t==='admin') listAdmin();
-        if(t==='deudas') listDeudas();
+    // CAMBIAR PESTAÑAS
+    function showTab(name) {
+        document.querySelectorAll('.tab').forEach(t => t.style.display = 'none');
+        document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+        document.getElementById('tab-' + name).style.display = 'block';
+        document.getElementById('btn-' + name).classList.add('active');
+        if(name === 'admin') loadAdmin();
+        if(name === 'deudas') loadDeudas();
+        if(name === 'venta') loadInit();
     }
 
-    async function loadP() {
-        const {data} = await supabaseClient.from('productos').select('*').order('nombre');
+    // CARGAR PRODUCTOS Y CLIENTES
+    async function loadInit() {
+        const {data: prods} = await sb.from('productos').select('*').order('nombre');
         const sel = document.getElementById('v-producto');
-        if(data) sel.innerHTML = data.map(p => `<option value="${p.id}" data-pre="${p.precio}">${p.nombre} ($${p.precio})</option>`).join('');
-        const {data:c} = await supabaseClient.from('clientes').select('nombre');
-        if(c) {
-            const u = [...new Set(c.map(x=>x.nombre))];
-            document.getElementById('l-clientes').innerHTML = u.map(n=>`<option value="${n}">`).join('');
+        if(prods) sel.innerHTML = prods.map(p => `<option value="${p.id}" data-p="${p.precio}">${p.nombre} ($${p.precio})</option>`).join('');
+        
+        const {data: clis} = await sb.from('clientes').select('nombre');
+        if(clis) {
+            const unicos = [...new Set(clis.map(c => c.nombre))];
+            document.getElementById('l-clientes').innerHTML = unicos.map(n => `<option value="${n}">`).join('');
         }
     }
 
+    // CARRITO
     function addCart() {
         const s = document.getElementById('v-producto');
-        const id = s.value; if(!id) return;
-        const n = s.options[s.selectedIndex].text.split(' (')[0];
-        const p = parseFloat(s.options[s.selectedIndex].dataset.pre);
-        cart.push({id, n, p});
-        drawCart();
+        if(!s.value) return;
+        const n = s.options[s.selectedIndex].text.split(' ($')[0];
+        const p = parseFloat(s.options[s.selectedIndex].dataset.p);
+        carrito.push({id: s.value, n, p});
+        renderCart();
     }
 
-    function drawCart() {
-        const b = document.getElementById('cart-box'), l = document.getElementById('cart-list'), t = document.getElementById('cart-total');
-        if(cart.length===0){ b.style.display='none'; return; }
-        b.style.display='block'; l.innerHTML = ''; let tot = 0;
-        cart.forEach((it, i) => {
+    function renderCart() {
+        const box = document.getElementById('cart-box');
+        const list = document.getElementById('cart-list');
+        const totalTxt = document.getElementById('cart-total');
+        if(carrito.length === 0) { box.style.display='none'; return; }
+        box.style.display='block';
+        list.innerHTML = ''; let tot = 0;
+        carrito.forEach((it, i) => {
             tot += it.p;
-            l.innerHTML += `<div class="cart-item"><span>${it.n}</span><b>$${it.p} <span onclick="cart.splice(${i},1);drawCart()" style="color:red;cursor:pointer;margin-left:10px">✖</span></b></div>`;
+            list.innerHTML += `<div class="cart-item"><span>${it.n}</span><b>$${it.p} <span onclick="carrito.splice(${i},1);renderCart()" style="color:red; cursor:pointer; margin-left:10px">✖</span></b></div>`;
         });
-        t.innerText = tot.toFixed(2);
+        totalTxt.innerText = tot.toFixed(2);
     }
 
-    async function finish(est) {
-        const cli = document.getElementById('v-cliente').value.trim();
-        if(!cli || cart.length===0) return alert("Faltan datos");
-        let {data:c} = await supabaseClient.from('clientes').select('id').eq('nombre', cli).maybeSingle();
-        if(!c) { const {data:n} = await supabaseClient.from('clientes').insert([{nombre:cli}]).select().single(); c=n; }
-        for(let it of cart){ await supabaseClient.from('ventas').insert([{cliente_id:c.id, producto_id:it.id, total:it.p, estado:est}]); }
-        alert("¡Venta Registrada!"); cart=[]; document.getElementById('v-cliente').value=''; drawCart(); loadP();
+    // FINALIZAR VENTA
+    async function doVenta(estado) {
+        const cliNom = document.getElementById('v-cliente').value.trim();
+        if(!cliNom || carrito.length === 0) return alert("Falta cliente o productos");
+
+        let {data: cli} = await sb.from('clientes').select('id').eq('nombre', cliNom).maybeSingle();
+        if(!cli) {
+            const {data: n} = await sb.from('clientes').insert([{nombre: cliNom}]).select().single();
+            cli = n;
+        }
+
+        for(let it of carrito) {
+            await sb.from('ventas').insert([{cliente_id: cli.id, producto_id: it.id, total: it.p, estado: estado}]);
+        }
+        alert("Venta guardada");
+        carrito = []; document.getElementById('v-cliente').value=''; renderCart(); loadInit();
     }
 
-    async function listDeudas() {
-        const {data} = await supabaseClient.from('ventas').select('total, clientes(nombre)').eq('estado', 'Crédito');
-        const l = document.getElementById('d-list'); l.innerHTML = '';
-        if(!data || data.length === 0) { l.innerHTML = "No hay deudas pendientes"; return; }
+    // CARGAR DEUDAS (AGRUPADO)
+    async function loadDeudas() {
+        const {data} = await sb.from('ventas').select('total, clientes(nombre)').eq('estado', 'Crédito');
+        const list = document.getElementById('d-list');
+        const sumaTxt = document.getElementById('d-total-suma');
+        list.innerHTML = "";
+        if(!data || data.length === 0) { list.innerHTML = "No hay deudas"; sumaTxt.innerText = "$0.00"; return; }
 
-        // AGRUPAR POR CLIENTE
-        const resumen = {};
-        let totalGeneral = 0;
+        let resumen = {}; let sumaTotal = 0;
         data.forEach(v => {
-            const nombre = v.clientes.nombre;
-            resumen[nombre] = (resumen[nombre] || 0) + parseFloat(v.total);
-            totalGeneral += parseFloat(v.total);
+            const n = v.clientes ? v.clientes.nombre : "Sin nombre";
+            resumen[n] = (resumen[n] || 0) + parseFloat(v.total);
+            sumaTotal += parseFloat(v.total);
         });
 
         for (const [nombre, monto] of Object.entries(resumen)) {
-            l.innerHTML += `<div class="deuda-row"><span>${nombre}</span><b style="color:var(--red)">$${monto.toFixed(2)}</b></div>`;
+            list.innerHTML += `<div class="item-row"><span>${nombre}</span><b style="color:red">$${monto.toFixed(2)}</b></div>`;
         }
-        document.getElementById('d-total').innerText = `$${totalGeneral.toFixed(2)}`;
+        sumaTxt.innerText = `$${sumaTotal.toFixed(2)}`;
     }
 
-    async function listAdmin() {
-        const {data} = await supabaseClient.from('productos').select('*').order('nombre');
-        const l = document.getElementById('admin-list'); l.innerHTML = '<h3>Inventario</h3>';
+    // ADMIN PRODUCTOS
+    async function loadAdmin() {
+        const {data} = await sb.from('productos').select('*').order('nombre');
+        const list = document.getElementById('adm-list');
+        list.innerHTML = "<h3>Inventario</h3>";
         if(data) data.forEach(p => {
-            l.innerHTML += `<div class="card" style="display:flex;justify-content:space-between"><span>${p.nombre} - $${p.precio}</span><div><span onclick="editP(${p.id},'${p.nombre}',${p.precio})" style="cursor:pointer">✏️</span> <span onclick="delP(${p.id})" style="cursor:pointer;margin-left:15px">🗑️</span></div></div>`;
+            list.innerHTML += `<div class="card item-row"><span>${p.nombre} - $${p.precio}</span><div><span onclick="editP(${p.id},'${p.nombre}',${p.precio})" style="cursor:pointer">✏️</span> <span onclick="delP(${p.id})" style="cursor:pointer; margin-left:15px">🗑️</span></div></div>`;
         });
     }
 
-    async function saveP() {
-        const id=document.getElementById('e-id').value, n=document.getElementById('p-nom').value, p=document.getElementById('p-pre').value;
-        if(!n || !p) return;
-        if(id) await supabaseClient.from('productos').update({nombre:n, precio:p}).eq('id', id);
-        else await supabaseClient.from('productos').insert([{nombre:n, precio:p}]);
-        document.getElementById('e-id').value=''; document.getElementById('p-nom').value=''; document.getElementById('p-pre').value='';
-        document.getElementById('f-title').innerText="+ Nuevo Producto";
-        listAdmin(); loadP();
+    async function saveProd() {
+        const id=document.getElementById('adm-id').value, n=document.getElementById('adm-nom').value, p=document.getElementById('adm-pre').value;
+        if(!n || !p) return alert("Llena los campos");
+        if(id) await sb.from('productos').update({nombre:n, precio:p}).eq('id',id);
+        else await sb.from('productos').insert([{nombre:n, precio:p}]);
+        document.getElementById('adm-id').value=''; document.getElementById('adm-nom').value=''; document.getElementById('adm-pre').value='';
+        document.getElementById('adm-title').innerText="+ Nuevo";
+        loadAdmin(); loadInit();
     }
 
-    async function delP(id) { if(confirm("¿Borrar?")){ await supabaseClient.from('productos').delete().eq('id',id); listAdmin(); loadP(); } }
-    function editP(id,n,p) { document.getElementById('e-id').value=id; document.getElementById('p-nom').value=n; document.getElementById('p-pre').value=p; document.getElementById('f-title').innerText="Editando..."; }
+    async function delP(id) { if(confirm("¿Borrar?")) { await sb.from('productos').delete().eq('id',id); loadAdmin(); } }
+    function editP(id,n,p) { document.getElementById('adm-id').value=id; document.getElementById('adm-nom').value=n; document.getElementById('adm-pre').value=p; document.getElementById('adm-title').innerText="Editando..."; }
 
-    window.onload = loadP;
+    window.onload = loadInit;
 </script>
 </body>
 </html>
