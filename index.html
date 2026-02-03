@@ -3,20 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Helados Mari - Fijo</title>
+    <title>Helados Mari - Control de Ventas</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --blue: #1a4ab2; --yellow: #ffcc00; --green: #28a745; --red: #dc3545; }
-        body { font-family: sans-serif; background: #f0f2f5; margin: 0; padding-bottom: 50px; }
-        header { background: var(--blue); color: white; text-align: center; padding: 15px; border-bottom: 4px solid var(--yellow); font-weight: bold; }
-        nav { display: flex; justify-content: space-around; background: white; padding: 10px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        nav button { border: none; background: none; padding: 10px; cursor: pointer; border-radius: 8px; font-weight: bold; }
+        :root { --blue: #0044cc; --yellow: #ffcc00; --green: #28a745; --red: #dc3545; }
+        body { font-family: Arial, sans-serif; background: #f4f7f6; margin: 0; }
+        header { background: var(--blue); color: white; text-align: center; padding: 15px; font-weight: bold; border-bottom: 4px solid var(--yellow); }
+        nav { display: flex; justify-content: space-around; background: white; padding: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 1000; }
+        nav button { border: none; background: none; font-size: 14px; cursor: pointer; padding: 10px; border-radius: 5px; font-weight: bold; color: #555; }
         nav button.active { background: var(--blue); color: white; }
-        .container { padding: 15px; max-width: 500px; margin: auto; }
-        .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 15px; }
-        input, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
-        .btn { width: 100%; padding: 15px; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; }
-        .linea-deuda { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #eee; background: white; margin-bottom: 5px; border-radius: 8px; }
+        .container { padding: 20px; max-width: 800px; margin: auto; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        input, select { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        .btn-group { display: flex; gap: 10px; }
+        .btn { flex: 1; padding: 15px; border: none; border-radius: 5px; color: white; font-weight: bold; cursor: pointer; }
+        .btn-pay { background: var(--green); }
+        .btn-credit { background: white; color: var(--red); border: 1px solid var(--red); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .item-deuda { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #eee; }
     </style>
 </head>
 <body>
@@ -24,117 +29,158 @@
 <header>🍦 HELADOS MARI</header>
 
 <nav>
-    <button onclick="ver('venta')" id="n-venta" class="active">🛒 Venta</button>
-    <button onclick="ver('deudas')" id="n-deudas">💸 Deudas</button>
-    <button onclick="ver('admin')" id="n-admin">⚙️ Admin</button>
+    <button onclick="cambiarPestaña('venta')" id="btn-venta" class="active">🛒 Venta</button>
+    <button onclick="cambiarPestaña('deudas')" id="btn-deudas">💸 Deudas</button>
+    <button onclick="cambiarPestaña('admin')" id="btn-admin">⚙️ Admin</button>
 </nav>
 
 <div class="container">
-    <div id="t-venta" class="tab">
+    <div id="venta" class="tab-content active">
         <div class="card">
-            <label>Cliente</label>
-            <input type="text" id="v-cli" placeholder="Nombre...">
+            <h3>Nueva Venta</h3>
+            <label>Nombre del Cliente</label>
+            <input type="text" id="v-cliente" placeholder="Escribe o selecciona un cliente">
             <label>Producto</label>
-            <select id="v-pro"></select>
-            <button class="btn" style="background:var(--blue); margin-top:10px" onclick="registrar('Crédito')">Anotar Deuda</button>
-            <button class="btn" style="background:var(--green); margin-top:10px" onclick="registrar('Pagado')">Venta Pagada</button>
+            <select id="v-producto"></select>
+            <div class="btn-group">
+                <button class="btn btn-pay" onclick="registrarVenta('Pagado')">✅ PAGADO</button>
+                <button class="btn btn-credit" onclick="registrarVenta('Crédito')">🛑 CRÉDITO</button>
+            </div>
         </div>
     </div>
 
-    <div id="t-deudas" class="tab" style="display:none">
-        <div class="card" style="text-align:center; border:2px solid var(--red)">
+    <div id="deudas" class="tab-content">
+        <div class="card" style="text-align:center;">
             <p>TOTAL POR COBRAR</p>
-            <h1 id="d-total" style="color:var(--red)">$0.00</h1>
+            <h1 id="total-deudas" style="color:var(--red);">$0.00</h1>
         </div>
-        <div id="d-list"></div>
+        <div id="lista-deudas" class="card">Cargando deudas...</div>
     </div>
 
-    <div id="t-admin" class="tab" style="display:none">
+    <div id="admin" class="tab-content">
         <div class="card">
             <h3>+ Nuevo Producto</h3>
-            <input type="text" id="a-nom" placeholder="Nombre">
-            <input type="number" id="a-pre" step="0.01" placeholder="Precio">
-            <button class="btn" style="background:var(--green)" onclick="crearP()">Guardar</button>
+            <input type="text" id="p-nombre" placeholder="Nombre (ej. Barquilla)">
+            <input type="number" id="p-precio" step="0.01" placeholder="Precio (ej. 1.50)">
+            <button class="btn btn-pay" style="width:100%" onclick="agregarProducto()">Añadir Producto</button>
         </div>
-        <div id="a-list"></div>
+        <div id="lista-productos"></div>
     </div>
 </div>
 
 <script>
     const URL = "https://bohwyjtmyrtzuiyfqeto.supabase.co";
     const KEY = "sb_publishable_VYeyhaK2liOkgm8P3m8uyA_Bpkj1ZsF";
-    const sb = supabase.createClient(URL, KEY);
+    const supabaseClient = supabase.createClient(URL, KEY);
 
-    function ver(t) {
-        document.querySelectorAll('.tab').forEach(x => x.style.display = 'none');
-        document.querySelectorAll('nav button').forEach(x => x.classList.remove('active'));
-        document.getElementById('t-'+t).style.display = 'block';
-        document.getElementById('n-'+t).classList.add('active');
-        if(t === 'deudas') cargarDeudas();
-        if(t === 'admin') cargarAdmin();
-    }
-
-    async function cargarInicio() {
-        const { data } = await sb.from('productos').select('*').order('nombre');
-        const sel = document.getElementById('v-pro');
-        if(data) sel.innerHTML = data.map(p => `<option value="${p.id}" data-p="${p.precio}">${p.nombre} ($${p.precio})</option>`).join('');
-    }
-
-    async function registrar(est) {
-        const c = document.getElementById('v-cli').value;
-        const s = document.getElementById('v-pro');
-        if(!c || !s.value) return alert("Pon el nombre y elige producto");
+    // NAVEGACIÓN (Corregida)
+    function cambiarPestaña(id) {
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        document.getElementById('btn-' + id).classList.add('active');
         
-        let {data:cli} = await sb.from('clientes').select('id').eq('nombre', c).maybeSingle();
-        if(!cli) { const {data:n} = await sb.from('clientes').insert([{nombre:c}]).select().single(); cli=n; }
-
-        const pre = s.options[s.selectedIndex].dataset.p;
-        await sb.from('ventas').insert([{cliente_id:cli.id, producto_id:s.value, total:pre, estado:est}]);
-        alert("¡Listo!");
-        document.getElementById('v-cli').value = '';
+        if(id === 'deudas') cargarDeudas();
+        if(id === 'admin') cargarProductosAdmin();
     }
 
+    // CARGAR PRODUCTOS EN VENTA
+    async function cargarProductos() {
+        const { data, error } = await supabaseClient.from('productos').select('*').order('nombre');
+        const select = document.getElementById('v-producto');
+        if (data) {
+            select.innerHTML = data.map(p => `<option value="${p.id}" data-precio="${p.precio}">${p.nombre} ($${p.precio})</option>`).join('');
+        }
+    }
+
+    // REGISTRAR VENTA
+    async function registrarVenta(estado) {
+        const clienteNom = document.getElementById('v-cliente').value;
+        const productoId = document.getElementById('v-producto').value;
+        const precio = document.getElementById('v-producto').selectedOptions[0].dataset.precio;
+
+        if (!clienteNom) return alert("Ingresa el nombre del cliente");
+
+        // Buscar o crear cliente
+        let { data: cliente } = await supabaseClient.from('clientes').select('id').eq('nombre', clienteNom).maybeSingle();
+        if (!cliente) {
+            const { data: nuevo } = await supabaseClient.from('clientes').insert([{ nombre: clienteNom }]).select().single();
+            cliente = nuevo;
+        }
+
+        await supabaseClient.from('ventas').insert([{
+            cliente_id: cliente.id,
+            producto_id: productoId,
+            total: precio,
+            estado: estado
+        }]);
+
+        alert("Venta registrada como " + estado);
+        document.getElementById('v-cliente').value = "";
+    }
+
+    // CARGAR DEUDAS (Suma por cliente)
     async function cargarDeudas() {
-        const { data } = await sb.from('ventas').select('total, clientes(nombre)').eq('estado', 'Crédito');
-        const list = document.getElementById('d-list');
+        const { data } = await supabaseClient.from('ventas').select('total, clientes(nombre)').eq('estado', 'Crédito');
+        const lista = document.getElementById('lista-deudas');
         let totalGeneral = 0;
-        list.innerHTML = "";
         
-        if(!data || data.length === 0) { list.innerHTML = "No hay deudas"; return; }
+        if (!data || data.length === 0) {
+            lista.innerHTML = "No hay deudas pendientes.";
+            document.getElementById('total-deudas').innerText = "$0.00";
+            return;
+        }
 
-        // AGRUPACIÓN EN UNA SOLA LÍNEA
         const agrupado = {};
         data.forEach(v => {
-            const nombre = v.clientes ? v.clientes.nombre : "Sin nombre";
+            const nombre = v.clientes ? v.clientes.nombre : "Anónimo";
             agrupado[nombre] = (agrupado[nombre] || 0) + parseFloat(v.total);
             totalGeneral += parseFloat(v.total);
         });
 
-        for (const [nombre, monto] of Object.entries(agrupado)) {
-            list.innerHTML += `<div class="linea-deuda"><span>${nombre}</span><b style="color:var(--red)">$${monto.toFixed(2)}</b></div>`;
+        lista.innerHTML = Object.entries(agrupado).map(([nom, sum]) => `
+            <div class="item-deuda">
+                <span><b>${nom}</b></span>
+                <span style="color:red; font-weight:bold;">$${sum.toFixed(2)}</span>
+            </div>
+        `).join('');
+        
+        document.getElementById('total-deudas').innerText = "$" + totalGeneral.toFixed(2);
+    }
+
+    // ADMIN: PRODUCTOS
+    async function cargarProductosAdmin() {
+        const { data } = await supabaseClient.from('productos').select('*').order('nombre');
+        const lista = document.getElementById('lista-productos');
+        if (data) {
+            lista.innerHTML = "<h4>Inventario</h4>" + data.map(p => `
+                <div class="card" style="display:flex; justify-content:space-between; padding:10px;">
+                    <span>${p.nombre} - $${p.precio}</span>
+                    <button onclick="eliminarProducto(${p.id})" style="color:red; border:none; background:none; cursor:pointer;">🗑️ Borrar</button>
+                </div>
+            `).join('');
         }
-        document.getElementById('d-total').innerText = `$${totalGeneral.toFixed(2)}`;
     }
 
-    async function cargarAdmin() {
-        const { data } = await sb.from('productos').select('*').order('nombre');
-        const list = document.getElementById('a-list');
-        list.innerHTML = "<h3>Inventario</h3>";
-        if(data) data.forEach(p => {
-            list.innerHTML += `<div class="card" style="display:flex; justify-content:space-between"><span>${p.nombre}</span><b>$${p.precio}</b></div>`;
-        });
+    async function agregarProducto() {
+        const nombre = document.getElementById('p-nombre').value;
+        const precio = document.getElementById('p-precio').value;
+        if (!nombre || !precio) return;
+        await supabaseClient.from('productos').insert([{ nombre, precio }]);
+        document.getElementById('p-nombre').value = "";
+        document.getElementById('p-precio').value = "";
+        cargarProductosAdmin();
+        cargarProductos();
     }
 
-    async function crearP() {
-        const n = document.getElementById('a-nom').value;
-        const p = document.getElementById('a-pre').value;
-        if(!n || !p) return;
-        await sb.from('productos').insert([{nombre:n, precio:p}]);
-        document.getElementById('a-nom').value=''; document.getElementById('a-pre').value='';
-        cargarAdmin(); cargarInicio();
+    async function eliminarProducto(id) {
+        if (confirm("¿Borrar producto?")) {
+            await supabaseClient.from('productos').delete().eq('id', id);
+            cargarProductosAdmin();
+        }
     }
 
-    window.onload = cargarInicio;
+    window.onload = cargarProductos;
 </script>
 </body>
 </html>
