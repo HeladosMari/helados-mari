@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Helados Mari</title>
+    <title>Helados Mari - Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --blue: #1a4ab2; --yellow: #ffcc00; --green: #28a745; --red: #dc3545; }
+        :root { --blue: #1a4ab2; --yellow: #ffcc00; --green: #28a745; --red: #dc3545; --gray: #6c757d; }
         body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; margin: 0; padding-bottom: 50px; }
         header { background: var(--blue); color: white; text-align: center; padding: 15px; font-weight: bold; border-bottom: 4px solid var(--yellow); font-size: 1.2rem; }
         nav { display: flex; justify-content: space-around; background: white; padding: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 100; }
@@ -15,13 +15,15 @@
         .container { padding: 15px; max-width: 600px; margin: auto; }
         .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 15px; border: 1px solid #eee; }
         input, select { width: 100%; padding: 12px; margin: 8px 0 15px 0; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
-        .btn { width: 100%; padding: 15px; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 16px; margin-top: 5px; }
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 16px; margin-top: 5px; }
         .btn-pay { background: var(--green); }
         .btn-credit { background: white; color: var(--red); border: 2px solid var(--red); }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
         .item-list { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding: 10px 0; }
-        .delete-btn { background: none; border: none; color: var(--red); cursor: pointer; font-weight: bold; }
+        .actions { display: flex; gap: 10px; }
+        .edit-btn { color: var(--blue); background: none; border: none; cursor: pointer; font-size: 14px; }
+        .delete-btn { color: var(--red); background: none; border: none; cursor: pointer; font-size: 14px; }
     </style>
 </head>
 <body>
@@ -56,10 +58,12 @@
 
     <div id="tab-admin" class="tab-content">
         <div class="card">
-            <h3>+ Nuevo Producto</h3>
+            <h3 id="form-title">+ Nuevo Producto</h3>
+            <input type="hidden" id="edit-id">
             <input type="text" id="new-p-nombre" placeholder="Nombre (ej. Barquilla)">
             <input type="number" id="new-p-precio" step="0.01" placeholder="Precio (ej. 1.50)">
-            <button class="btn btn-pay" onclick="crearProducto()">Añadir Producto</button>
+            <button class="btn btn-pay" id="btn-save" onclick="guardarProducto()">Añadir Producto</button>
+            <button class="btn" id="btn-cancel" style="display:none; background:var(--gray)" onclick="cancelarEdicion()">Cancelar</button>
         </div>
         <div id="lista-productos-admin"></div>
     </div>
@@ -75,7 +79,6 @@
         document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
         document.getElementById('tab-' + tabName).classList.add('active');
         document.getElementById('nav-' + tabName).classList.add('active');
-        
         if(tabName === 'deudas') cargarDeudas();
         if(tabName === 'admin') listarProductosAdmin();
     }
@@ -83,22 +86,48 @@
     async function cargarProductos() {
         const { data } = await supabaseClient.from('productos').select('*').order('nombre');
         const select = document.getElementById('v-producto');
-        if(data) {
-            select.innerHTML = data.map(p => `<option value="${p.id}" data-precio="${p.precio}">${p.nombre} ($${p.precio})</option>`).join('');
-        }
+        if(data) select.innerHTML = data.map(p => `<option value="${p.id}" data-precio="${p.precio}">${p.nombre} ($${p.precio})</option>`).join('');
     }
 
-    async function crearProducto() {
-        const n = document.getElementById('new-p-nombre').value;
+    async function guardarProducto() {
+        const id = document.getElementById('edit-id').value;
+        const n = document.getElementById('new-p-nombre').value.trim();
         const p = document.getElementById('new-p-precio').value;
-        if(!n || !p) return alert("Completa nombre y precio");
-        
-        await supabaseClient.from('productos').insert([{ nombre: n, precio: p }]);
-        alert("¡Producto añadido!");
-        document.getElementById('new-p-nombre').value = "";
-        document.getElementById('new-p-precio').value = "";
+        if(!n || !p) return alert("Completa todos los campos");
+
+        if(id) {
+            // Modo Editar
+            await supabaseClient.from('productos').update({ nombre: n, precio: p }).eq('id', id);
+            alert("Actualizado correctamente");
+        } else {
+            // Modo Crear con Validación de Duplicados
+            const { data: existe } = await supabaseClient.from('productos').select('id').eq('nombre', n).maybeSingle();
+            if(existe) return alert("¡Error! Ya existe un producto con ese nombre.");
+            
+            await supabaseClient.from('productos').insert([{ nombre: n, precio: p }]);
+            alert("Producto creado");
+        }
+        cancelarEdicion();
         listarProductosAdmin();
         cargarProductos();
+    }
+
+    function editarInterfaz(id, nombre, precio) {
+        document.getElementById('edit-id').value = id;
+        document.getElementById('new-p-nombre').value = nombre;
+        document.getElementById('new-p-precio').value = precio;
+        document.getElementById('form-title').innerText = "✏️ Editando: " + nombre;
+        document.getElementById('btn-save').innerText = "Guardar Cambios";
+        document.getElementById('btn-cancel').style.display = "block";
+    }
+
+    function cancelarEdicion() {
+        document.getElementById('edit-id').value = "";
+        document.getElementById('new-p-nombre').value = "";
+        document.getElementById('new-p-precio').value = "";
+        document.getElementById('form-title').innerText = "+ Nuevo Producto";
+        document.getElementById('btn-save').innerText = "Añadir Producto";
+        document.getElementById('btn-cancel').style.display = "none";
     }
 
     async function listarProductosAdmin() {
@@ -109,13 +138,16 @@
             lista.innerHTML += `
                 <div class="card item-list">
                     <span>${p.nombre} - <b>$${p.precio}</b></span>
-                    <button class="delete-btn" onclick="eliminarProducto(${p.id})">🗑️ Borrar</button>
+                    <div class="actions">
+                        <button class="edit-btn" onclick="editarInterfaz(${p.id}, '${p.nombre}', ${p.precio})">✏️</button>
+                        <button class="delete-btn" onclick="eliminarProducto(${p.id})">🗑️</button>
+                    </div>
                 </div>`;
         });
     }
 
     async function eliminarProducto(id) {
-        if(confirm("¿Eliminar este producto?")) {
+        if(confirm("¿Eliminar definitivamente?")) {
             await supabaseClient.from('productos').delete().eq('id', id);
             listarProductosAdmin();
             cargarProductos();
@@ -123,26 +155,16 @@
     }
 
     async function registrarVenta(estado) {
-        const clienteNom = document.getElementById('v-cliente').value;
+        const clienteNom = document.getElementById('v-cliente').value.trim();
         const combo = document.getElementById('v-producto');
         if(!clienteNom || !combo.value) return alert("Faltan datos");
-
-        const productoId = combo.value;
         const precio = combo.selectedOptions[0].dataset.precio;
-
         let { data: cliente } = await supabaseClient.from('clientes').select('id').eq('nombre', clienteNom).maybeSingle();
         if (!cliente) {
             const { data: nuevo } = await supabaseClient.from('clientes').insert([{ nombre: clienteNom }]).select().single();
             cliente = nuevo;
         }
-
-        await supabaseClient.from('ventas').insert([{
-            cliente_id: cliente.id,
-            producto_id: productoId,
-            total: precio,
-            estado: estado
-        }]);
-
+        await supabaseClient.from('ventas').insert([{ cliente_id: cliente.id, producto_id: combo.value, total: precio, estado: estado }]);
         alert("¡Venta registrada!");
         document.getElementById('v-cliente').value = "";
     }
@@ -152,10 +174,12 @@
         let total = 0;
         const lista = document.getElementById('lista-deudas');
         lista.innerHTML = "";
-        data.forEach(v => {
-            total += parseFloat(v.total);
-            lista.innerHTML += `<div class="card item-list"><span>${v.clientes.nombre}</span><b style="color:red">$${v.total}</b></div>`;
-        });
+        if(data) {
+            data.forEach(v => {
+                total += parseFloat(v.total);
+                lista.innerHTML += `<div class="card item-list"><span>${v.clientes.nombre}</span><b style="color:red">$${v.total}</b></div>`;
+            });
+        }
         document.getElementById('total-deudas').innerText = `$${total.toFixed(2)}`;
     }
 
