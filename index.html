@@ -3,20 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Helados Mari - Control</title>
+    <title>Helados Mari</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --blue: #0044cc; --yellow: #ffcc00; --green: #28a745; --red: #dc3545; }
-        body { font-family: sans-serif; background: #f4f7f6; margin: 0; }
-        header { background: var(--blue); color: white; text-align: center; padding: 15px; border-bottom: 4px solid var(--yellow); font-weight: bold; }
-        nav { display: flex; justify-content: space-around; background: white; padding: 10px; position: sticky; top: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 100; }
-        nav button { border: none; background: none; font-weight: bold; padding: 10px; cursor: pointer; }
-        nav button.active { color: var(--blue); border-bottom: 2px solid var(--blue); }
+        body { font-family: Arial, sans-serif; background: #f4f7f6; margin: 0; }
+        header { background: #0044cc; color: white; text-align: center; padding: 15px; border-bottom: 4px solid #ffcc00; }
+        nav { display: flex; justify-content: space-around; background: white; padding: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        nav button { border: none; background: none; font-weight: bold; cursor: pointer; padding: 10px; }
         .container { padding: 20px; max-width: 500px; margin: auto; }
         .card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 15px; }
-        input, select { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; font-size: 16px; }
-        .btn { width: 100%; padding: 15px; border: none; border-radius: 5px; color: white; font-weight: bold; cursor: pointer; margin-top: 5px; }
-        .fila-deuda { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #eee; }
+        input, select { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        .btn { width: 100%; padding: 15px; border: none; border-radius: 5px; color: white; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
     </style>
 </head>
 <body>
@@ -24,38 +21,37 @@
 <header>🍦 HELADOS MARI</header>
 
 <nav>
-    <button onclick="cambiarPestaña('venta')" id="nav-venta" class="active">Venta</button>
-    <button onclick="cambiarPestaña('deudas')" id="nav-deudas">Deudas</button>
-    <button onclick="cambiarPestaña('admin')" id="nav-admin">Admin</button>
+    <button onclick="ver('v')">VENTA</button>
+    <button onclick="ver('d')">DEUDAS</button>
+    <button onclick="ver('a')">ADMIN</button>
 </nav>
 
 <div class="container">
-    <div id="venta" class="tab-content">
+    <div id="v">
         <div class="card">
             <h3>Nueva Venta</h3>
-            <input type="text" id="v-cliente" placeholder="Nombre del cliente">
-            <select id="v-producto"><option>Cargando productos...</option></select>
-            <button class="btn" style="background: var(--green);" onclick="registrarVenta('Pagado')">✅ PAGADO</button>
-            <button class="btn" style="background: white; color: var(--red); border: 2px solid var(--red);" onclick="registrarVenta('Crédito')">🛑 CRÉDITO</button>
+            <input type="text" id="cli" placeholder="Nombre del Cliente">
+            <select id="pro"><option>Cargando productos...</option></select>
+            <button class="btn" style="background:#28a745" onclick="reg('Pagado')">PAGADO</button>
+            <button class="btn" style="background:#dc3545" onclick="reg('Crédito')">DEUDA</button>
         </div>
     </div>
 
-    <div id="deudas" class="tab-content" style="display:none">
-        <div class="card" style="text-align:center;">
-            <p>POR COBRAR</p>
-            <h1 id="total-deudas-suma" style="color:var(--red);">$0.00</h1>
+    <div id="d" style="display:none">
+        <div class="card" style="text-align:center">
+            <h3>DEUDAS</h3>
+            <div id="lista-d"></div>
         </div>
-        <div id="lista-deudas-suma" class="card"></div>
     </div>
 
-    <div id="admin" class="tab-content" style="display:none">
+    <div id="a" style="display:none">
         <div class="card">
             <h3>Nuevo Producto</h3>
-            <input type="text" id="p-nombre" placeholder="Nombre">
-            <input type="number" id="p-precio" placeholder="Precio">
-            <button class="btn" style="background: var(--blue);" onclick="agregarProducto()">Guardar</button>
+            <input type="text" id="an" placeholder="Nombre">
+            <input type="number" id="ap" placeholder="Precio">
+            <button class="btn" style="background:#0044cc" onclick="crear()">Guardar</button>
         </div>
-        <div id="lista-productos-admin"></div>
+        <div id="lista-a"></div>
     </div>
 </div>
 
@@ -64,104 +60,77 @@
     const KEY = "sb_publishable_VYeyhaK2liOkgm8P3m8uyA_Bpkj1ZsF";
     const sb = supabase.createClient(URL, KEY);
 
-    function cambiarPestaña(id) {
-        document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
-        document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
-        document.getElementById(id).style.display = 'block';
-        document.getElementById('nav-' + id).classList.add('active');
-        if(id === 'deudas') cargarDeudas();
-        if(id === 'admin') cargarProductosAdmin();
+    function ver(id) {
+        document.getElementById('v').style.display = id=='v'?'block':'none';
+        document.getElementById('d').style.display = id=='d'?'block':'none';
+        document.getElementById('a').style.display = id=='a'?'block':'none';
+        if(id=='d') cargarD();
+        if(id=='a') cargarA();
     }
 
-    async function cargarProductosVenta() {
-        const { data, error } = await sb.from('productos').select('*').order('nombre');
-        const sel = document.getElementById('v-producto');
-        if (error) { console.error(error); sel.innerHTML = "<option>Error de conexión</option>"; return; }
+    async function cargarP() {
+        const { data } = await sb.from('productos').select('*').order('nombre');
+        const sel = document.getElementById('pro');
         if (data) {
-            sel.innerHTML = data.map(p => `<option value="${p.id}" data-precio="${p.precio}">${p.nombre} ($${p.precio})</option>`).join('');
+            sel.innerHTML = data.map(p => `<option value="${p.id}" data-p="${p.precio}">${p.nombre} ($${p.precio})</option>`).join('');
         }
     }
 
-    async function registrarVenta(estado) {
-        const nombre = document.getElementById('v-cliente').value;
-        const sel = document.getElementById('v-producto');
-        if (!nombre || !sel.value) return alert("Faltan datos");
+    async function reg(est) {
+        const n = document.getElementById('cli').value;
+        const sel = document.getElementById('pro');
+        if (!n) return alert("Escribe el nombre");
 
-        let { data: cli } = await sb.from('clientes').select('id').eq('nombre', nombre).maybeSingle();
-        if (!cli) {
-            const { data: n } = await sb.from('clientes').insert([{ nombre: nombre }]).select().single();
-            cli = n;
+        let { data: c } = await sb.from('clientes').select('id').eq('nombre', n).maybeSingle();
+        if (!c) {
+            const { data: nc } = await sb.from('clientes').insert([{ nombre: n }]).select().single();
+            c = nc;
         }
 
         await sb.from('ventas').insert([{
-            cliente_id: cli.id,
+            cliente_id: c.id,
             producto_id: sel.value,
-            total: sel.selectedOptions[0].dataset.precio,
-            estado: estado
+            total: sel.options[sel.selectedIndex].dataset.p,
+            estado: est
         }]);
 
-        alert("¡Venta registrada!");
-        document.getElementById('v-cliente').value = "";
+        alert("Guardado");
+        document.getElementById('cli').value = "";
     }
 
-    async function cargarDeudas() {
+    async function cargarD() {
         const { data } = await sb.from('ventas').select('total, clientes(nombre)').eq('estado', 'Crédito');
-        const contenedor = document.getElementById('lista-deudas-suma');
-        let totalTotal = 0;
-        
-        if (!data || data.length === 0) {
-            contenedor.innerHTML = "No hay deudas.";
-            document.getElementById('total-deudas-suma').innerText = "$0.00";
-            return;
-        }
-
-        const sumaPorCliente = {};
-        data.forEach(v => {
-            const n = v.clientes ? v.clientes.nombre : "Anónimo";
-            sumaPorCliente[n] = (sumaPorCliente[n] || 0) + parseFloat(v.total);
-            totalTotal += parseFloat(v.total);
-        });
-
-        contenedor.innerHTML = Object.entries(sumaPorCliente).map(([nombre, suma]) => `
-            <div class="fila-deuda">
-                <span><b>${nombre}</b></span>
-                <span style="color:red; font-weight:bold;">$${suma.toFixed(2)}</span>
-            </div>
-        `).join('');
-        document.getElementById('total-deudas-suma').innerText = "$" + totalTotal.toFixed(2);
-    }
-
-    async function cargarProductosAdmin() {
-        const { data } = await sb.from('productos').select('*').order('nombre');
-        const list = document.getElementById('lista-productos-admin');
+        const list = document.getElementById('lista-d');
         if (data) {
-            list.innerHTML = data.map(p => `
-                <div class="card fila-deuda">
-                    <span>${p.nombre} - $${p.precio}</span>
-                    <button onclick="borrarProd(${p.id})" style="color:red; border:none; background:none;">🗑️</button>
+            list.innerHTML = data.map(v => `
+                <div style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #eee">
+                    <span>${v.clientes ? v.clientes.nombre : 'S/N'}</span>
+                    <b>$${v.total}</b>
                 </div>
             `).join('');
         }
     }
 
-    async function agregarProducto() {
-        const n = document.getElementById('p-nombre').value;
-        const p = document.getElementById('p-precio').value;
+    async function cargarA() {
+        const { data } = await sb.from('productos').select('*').order('nombre');
+        const list = document.getElementById('lista-a');
+        if (data) {
+            list.innerHTML = data.map(p => `<div class="card">${p.nombre} - $${p.precio}</div>`).join('');
+        }
+    }
+
+    async function crear() {
+        const n = document.getElementById('an').value;
+        const p = document.getElementById('ap').value;
         if(n && p) {
             await sb.from('productos').insert([{ nombre: n, precio: p }]);
-            cargarProductosAdmin();
-            cargarProductosVenta();
+            cargarP(); cargarA();
+            document.getElementById('an').value = "";
+            document.getElementById('ap').value = "";
         }
     }
 
-    async function borrarProd(id) {
-        if(confirm("¿Borrar?")) {
-            await sb.from('productos').delete().eq('id', id);
-            cargarProductosAdmin();
-        }
-    }
-
-    window.onload = cargarProductosVenta;
+    window.onload = cargarP;
 </script>
 </body>
 </html>
