@@ -3,54 +3,54 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Helados Mari - Fijo</title>
+    <title>Helados Mari - REPARADO</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --blue: #1a4ab2; --yellow: #ffcc00; --green: #28a745; --red: #dc3545; }
-        body { font-family: sans-serif; background: #f0f2f5; margin: 0; padding-bottom: 50px; }
-        header { background: var(--blue); color: white; text-align: center; padding: 15px; border-bottom: 4px solid var(--yellow); font-weight: bold; }
-        nav { display: flex; justify-content: space-around; background: white; padding: 10px; position: sticky; top: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        nav button { border: none; background: none; padding: 10px; cursor: pointer; border-radius: 8px; font-weight: bold; }
-        nav button.active { background: var(--blue); color: white; }
-        .container { padding: 15px; max-width: 500px; margin: auto; }
-        .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 15px; }
-        input, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
-        .btn { width: 100%; padding: 15px; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; }
+        :root { --b: #1a4ab2; --y: #ffcc00; --g: #28a745; --r: #dc3545; }
+        body { font-family: sans-serif; background: #f4f7f6; margin: 0; padding-bottom: 60px; }
+        header { background: var(--b); color: white; text-align: center; padding: 15px; font-weight: bold; border-bottom: 4px solid var(--y); }
+        nav { display: flex; background: white; position: sticky; top: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 10; }
+        nav button { flex: 1; border: none; background: none; padding: 15px; cursor: pointer; font-weight: bold; color: #666; }
+        nav button.act { color: var(--b); border-bottom: 3px solid var(--b); }
+        .cont { padding: 15px; max-width: 600px; margin: auto; }
+        .card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 15px; }
+        input, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        .btn { width: 100%; padding: 15px; border: none; border-radius: 5px; color: white; font-weight: bold; cursor: pointer; }
+        .row { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #eee; align-items: center; }
     </style>
 </head>
 <body>
 
 <header>🍦 HELADOS MARI</header>
-
 <nav>
-    <button onclick="tab('venta')" id="b-venta" class="active">🛒 Venta</button>
-    <button onclick="tab('deudas')" id="b-deudas">💸 Deudas</button>
-    <button onclick="tab('admin')" id="b-admin">⚙️ Admin</button>
+    <button onclick="ir('v')" id="nb-v" class="act">Venta</button>
+    <button onclick="ir('d')" id="nb-d">Deudas</button>
+    <button onclick="ir('a')" id="nb-a">Admin</button>
 </nav>
 
-<div class="container">
-    <div id="t-venta" class="tab-c">
+<div class="cont">
+    <div id="p-v" class="pag">
         <div class="card">
-            <input type="text" id="v-cli" placeholder="Nombre del cliente...">
-            <select id="v-prod"><option>Cargando productos...</option></select>
-            <button class="btn" style="background:var(--blue)" onclick="vender()">Registrar Venta</button>
+            <input type="text" id="v-cli" placeholder="Nombre del cliente">
+            <select id="v-pro"></select>
+            <button class="btn" style="background:var(--b)" onclick="vender()">REGISTRAR VENTA</button>
         </div>
     </div>
 
-    <div id="t-deudas" class="tab-c" style="display:none">
-        <div class="card" style="text-align:center; border:2px solid var(--red)">
-            <p>POR COBRAR</p>
-            <h1 id="d-total" style="color:var(--red)">$0.00</h1>
+    <div id="p-d" class="pag" style="display:none">
+        <div class="card" style="text-align:center">
+            <small>Total Deuda</small>
+            <h2 id="d-tot" style="color:var(--r); margin:5px 0">$0.00</h2>
         </div>
-        <div id="d-list"></div>
+        <div id="d-list" class="card">Cargando deudas...</div>
     </div>
 
-    <div id="t-admin" class="tab-c" style="display:none">
+    <div id="p-a" class="pag" style="display:none">
         <div class="card">
-            <h3>Nuevo Producto</h3>
-            <input type="text" id="a-nom" placeholder="Nombre">
-            <input type="number" id="a-pre" placeholder="Precio">
-            <button class="btn" style="background:var(--green)" onclick="crearP()">Guardar</button>
+            <h3>+ Nuevo Producto</h3>
+            <input type="text" id="a-nom" placeholder="Nombre (ej: Barquilla)">
+            <input type="number" id="a-pre" step="0.01" placeholder="Precio (ej: 1.50)">
+            <button class="btn" style="background:var(--g)" onclick="crearP()">GUARDAR PRODUCTO</button>
         </div>
         <div id="a-list"></div>
     </div>
@@ -61,62 +61,69 @@
     const KEY = "sb_publishable_VYeyhaK2liOkgm8P3m8uyA_Bpkj1ZsF";
     const sb = supabase.createClient(URL, KEY);
 
-    function tab(n) {
-        document.querySelectorAll('.tab-c').forEach(x => x.style.display = 'none');
-        document.querySelectorAll('nav button').forEach(x => x.classList.remove('active'));
-        document.getElementById('t-'+n).style.display = 'block';
-        document.getElementById('b-'+n).classList.add('active');
-        if(n === 'deudas') cargarDeudas();
-        if(n === 'admin') cargarAdmin();
+    function ir(p) {
+        document.querySelectorAll('.pag').forEach(x => x.style.display = 'none');
+        document.querySelectorAll('nav button').forEach(x => x.classList.remove('act'));
+        document.getElementById('p-'+p).style.display = 'block';
+        document.getElementById('nb-'+p).classList.add('act');
+        if(p==='d') verDeudas();
+        if(p==='a') verAdmin();
     }
 
-    async function cargarInicio() {
-        try {
-            const { data } = await sb.from('productos').select('*').order('nombre');
-            const sel = document.getElementById('v-prod');
-            if(data && data.length > 0) {
-                sel.innerHTML = data.map(p => `<option value="${p.id}" data-pre="${p.precio}">${p.nombre} ($${p.precio})</option>`).join('');
-            } else {
-                sel.innerHTML = '<option>No hay productos en Admin</option>';
-            }
-        } catch (e) { console.error(e); }
+    async function verInicio() {
+        const { data } = await sb.from('productos').select('*').order('nombre');
+        const sel = document.getElementById('v-pro');
+        if(data) sel.innerHTML = data.map(p => `<option value="${p.id}" data-p="${p.precio}">${p.nombre} ($${p.precio})</option>`).join('');
     }
 
     async function vender() {
-        const cli = document.getElementById('v-cli').value;
-        const prod = document.getElementById('v-prod');
-        const id = prod.value;
-        const pre = prod.options[prod.selectedIndex].dataset.pre;
-        if(!cli) return alert("Escribe el nombre del cliente");
+        const c = document.getElementById('v-cli').value;
+        const s = document.getElementById('v-pro');
+        if(!c || !s.value) return alert("Llena los datos");
         
-        // Registrar deuda automáticamente para probar
-        await sb.from('ventas').insert([{ cliente_id: 1, total: pre, estado: 'Crédito' }]); 
-        alert("Venta registrada");
+        // Buscamos o creamos cliente
+        let {data:cli} = await sb.from('clientes').select('id').eq('nombre', c).maybeSingle();
+        if(!cli) { const {data:n} = await sb.from('clientes').insert([{nombre:c}]).select().single(); cli=n; }
+
+        const pre = s.options[s.selectedIndex].dataset.p;
+        await sb.from('ventas').insert([{cliente_id:cli.id, producto_id:s.value, total:pre, estado:'Crédito'}]);
+        alert("¡Venta anotada como DEUDA!");
+        document.getElementById('v-cli').value = '';
     }
 
-    async function cargarDeudas() {
-        const { data } = await sb.from('ventas').select('total').eq('estado', 'Crédito');
-        let t = 0;
-        if(data) data.forEach(v => t += parseFloat(v.total));
-        document.getElementById('d-total').innerText = `$${t.toFixed(2)}`;
-        document.getElementById('d-list').innerHTML = '<div class="card">Datos actualizados</div>';
+    async function verDeudas() {
+        const { data } = await sb.from('ventas').select('total, clientes(nombre)').eq('estado', 'Crédito');
+        const list = document.getElementById('d-list');
+        let suma = 0;
+        if(!data || data.length === 0) { list.innerHTML = "No hay deudas"; return; }
+        
+        list.innerHTML = data.map(v => {
+            suma += parseFloat(v.total);
+            const nombre = v.clientes ? v.clientes.nombre : "Sin nombre";
+            return `<div class="row"><span>${nombre}</span><b style="color:var(--r)">$${v.total}</b></div>`;
+        }).join('');
+        document.getElementById('d-tot').innerText = `$${suma.toFixed(2)}`;
     }
 
-    async function cargarAdmin() {
-        const { data } = await sb.from('productos').select('*');
+    async function verAdmin() {
+        const { data } = await sb.from('productos').select('*').order('nombre');
         const list = document.getElementById('a-list');
-        list.innerHTML = data ? data.map(p => `<div class="card">${p.nombre} - $${p.precio}</div>`).join('') : 'Sin productos';
+        list.innerHTML = "<h4>Inventario Actual</h4>";
+        if(data) data.forEach(p => {
+            list.innerHTML += `<div class="card row"><span>${p.nombre}</span><b>$${p.precio}</b></div>`;
+        });
     }
 
     async function crearP() {
         const n = document.getElementById('a-nom').value;
         const p = document.getElementById('a-pre').value;
-        await sb.from('productos').insert([{ nombre: n, precio: p }]);
-        alert("Guardado");
-        cargarAdmin(); cargarInicio();
+        if(!n || !p) return;
+        await sb.from('productos').insert([{nombre:n, precio:p}]);
+        document.getElementById('a-nom').value=''; document.getElementById('a-pre').value='';
+        verAdmin(); verInicio();
     }
 
-    window.onload = cargarInicio;
+    window.onload = verInicio;
 </script>
 </body>
 </html>
