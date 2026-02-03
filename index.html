@@ -141,4 +141,114 @@
     function cancelarEdicion() {
         document.getElementById('edit-id').value = "";
         document.getElementById('new-p-nombre').value = "";
-        document.getElementById('new-p-precio').value =
+        document.getElementById('new-p-precio').value = "";
+        document.getElementById('form-title').innerText = "+ Nuevo Producto";
+        document.getElementById('btn-save').innerText = "Añadir Producto";
+        document.getElementById('btn-cancel').style.display = "none";
+    }
+
+    async function eliminarProducto(id) {
+        if(confirm("¿Eliminar producto?")) {
+            await supabaseClient.from('productos').delete().eq('id', id);
+            listarProductosAdmin();
+            cargarProductos();
+        }
+    }
+
+    // --- FUNCIONES DE VENTA Y CARRITO ---
+    async function cargarSugerenciasClientes() {
+        const { data } = await supabaseClient.from('clientes').select('nombre');
+        const list = document.getElementById('lista-clientes');
+        if(data) {
+            const unicos = [...new Set(data.map(c => c.nombre))];
+            list.innerHTML = unicos.map(n => `<option value="${n}">`).join('');
+        }
+    }
+
+    function agregarAlCarrito() {
+        const sel = document.getElementById('v-producto');
+        const id = sel.value;
+        const nombre = sel.options[sel.selectedIndex].text.split(' ($')[0];
+        const precio = parseFloat(sel.options[sel.selectedIndex].dataset.precio);
+        
+        carrito.push({ id, nombre, precio });
+        actualizarCarritoUI();
+    }
+
+    function quitarDelCarrito(index) {
+        carrito.splice(index, 1);
+        actualizarCarritoUI();
+    }
+
+    function actualizarCarritoUI() {
+        const container = document.getElementById('items-carrito');
+        const seccion = document.getElementById('seccion-carrito');
+        const totalTxt = document.getElementById('total-venda');
+        
+        if(carrito.length === 0) {
+            seccion.style.display = 'none';
+            return;
+        }
+
+        seccion.style.display = 'block';
+        container.innerHTML = '';
+        let total = 0;
+
+        carrito.forEach((item, index) => {
+            total += item.precio;
+            container.innerHTML += `
+                <div class="cart-item">
+                    <span>${item.nombre} - $${item.precio}</span>
+                    <button onclick="quitarDelCarrito(${index})" style="background:none; border:none; color:red; cursor:pointer;">✖</button>
+                </div>`;
+        });
+        totalTxt.innerText = total.toFixed(2);
+    }
+
+    async function finalizarVenta(estado) {
+        const clienteNom = document.getElementById('v-cliente').value.trim();
+        if(!clienteNom || carrito.length === 0) return alert("Falta cliente o productos");
+
+        let { data: cliente } = await supabaseClient.from('clientes').select('id').eq('nombre', clienteNom).maybeSingle();
+        if(!cliente) {
+            const { data: nuevo } = await supabaseClient.from('clientes').insert([{ nombre: clienteNom }]).select().single();
+            cliente = nuevo;
+        }
+
+        for (const item of carrito) {
+            await supabaseClient.from('ventas').insert([{
+                cliente_id: cliente.id,
+                producto_id: item.id,
+                total: item.precio,
+                estado: estado
+            }]);
+        }
+
+        alert("¡Venta Exitosa!");
+        carrito = [];
+        document.getElementById('v-cliente').value = "";
+        actualizarCarritoUI();
+        cargarSugerenciasClientes();
+    }
+
+    async function cargarDeudas() {
+        const { data } = await supabaseClient.from('ventas').select('total, clientes(nombre)').eq('estado', 'Crédito');
+        let total = 0;
+        const lista = document.getElementById('lista-deudas');
+        lista.innerHTML = "";
+        if(data) {
+            data.forEach(v => {
+                total += parseFloat(v.total);
+                lista.innerHTML += `<div class="card item-list"><span>${v.clientes.nombre}</span><b style="color:red">$${v.total}</b></div>`;
+            });
+        }
+        document.getElementById('total-deudas').innerText = `$${total.toFixed(2)}`;
+    }
+
+    window.onload = function() {
+        cargarProductos();
+        cargarSugerenciasClientes();
+    };
+</script>
+</body>
+</html>
